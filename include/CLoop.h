@@ -59,6 +59,8 @@ class CLoop {
    // Output trees
    OutputTree m_signalTree{"SIGNAL", "Signal TTree"};
    OutputTree m_backgroundTree{"BG", "Background TTree"};
+   // Config
+   CLoopConfig config;
 };
 
 #endif

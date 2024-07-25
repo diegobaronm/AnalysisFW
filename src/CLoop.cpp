@@ -5,17 +5,23 @@
 #include "CLoopConfig.h"
 #include <TLorentzVector.h>
 #include <memory>
+#include <vector>
 
 std::vector<std::string> split(const std::string& s, char delimiter);
 TLorentzVector& toGeV(TLorentzVector &v);
+bool CalculateNGapJets(const double &ljet_0_rapidity, const double &ljet_1_rapidity, const std::vector<float> *JetEta);
 
-void CLoop::Loop(float lumFactor, int z_sample, std::string key, const CLoopConfig& config)
+
+void CLoop::Loop(float lumFactor, int z_sample, std::string key, const CLoopConfig& i_config)
 {
+    config = i_config;
     clock_t startTime = clock(); // get start time
+
+    std::cout<<"mass region: "<<config.m_massRegion<<std::endl;
 
     if (fChain == 0) return;
 
-    Long64_t nentries = fChain->GetEntriesFast();
+    Long64_t nentries = fChain->GetEntries();
 
     // if in fast mode only loop over 1% of the entries
     Long64_t nLoop = nentries;
@@ -65,10 +71,19 @@ void CLoop::Loop(float lumFactor, int z_sample, std::string key, const CLoopConf
         double lepton_xi=(tau_0_p4+tau_1_p4).Rapidity();
         double dijet_xi=ljet_0_p4.Rapidity()+ljet_1_p4.Rapidity();
         double z_centrality=abs(lepton_xi-0.5*dijet_xi)/delta_y;
+        bool N_gap_jets = CalculateNGapJets(ljet_0_p4.Rapidity(), ljet_1_p4.Rapidity(), JetEta);
 
         Region region = Region::DefaultNoRW;
-        if (z_centrality<0.5){region = Region::SR;}
-        else if (z_centrality<=1.0){region = Region::CR;}
+        if (z_centrality<0.5)
+        {
+          if (N_gap_jets == 0) region = Region::SR;
+          else region = Region::CRa;
+        }
+        else if (z_centrality<=1.0)
+        {
+          if (N_gap_jets == 0) region = Region::CRc;
+          else region = Region::CRb;
+        }
 
         double mjj = sqrt(2*(ljet_0_p4.Dot(ljet_1_p4)));
         double mjj_w = 1.0;
@@ -92,15 +107,14 @@ void CLoop::Loop(float lumFactor, int z_sample, std::string key, const CLoopConf
             eventWeight = weight*lumFactor*mjj_w;
     
         }
-
         // fill histograms
-        //cout << eventWeight;
         if (saveHistograms) Fill(eventWeight, z_sample, key);
         if (saveEvents) FillTree(eventWeight, z_sample, key);
         // end filling
 
     }
     // end style and writing
+
     if (saveHistograms) Style(lumFactor);   
     if (saveEvents) {
         m_outputFile->WriteObject(m_signalTree.GetTree(),"SIGNAL");

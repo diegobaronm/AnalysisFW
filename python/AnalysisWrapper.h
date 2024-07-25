@@ -23,5 +23,4 @@ class CLoopWrapper {
 
     private:
     std::shared_ptr<CLoop> m_cloop;
-
 };
